@@ -290,6 +290,40 @@ input[type="file"]::file-selector-button:active {
     }
 
     // ============================================================
+    // UTILITY FUNCTIONS - CANVAS CALCULATIONS
+    // ============================================================
+    
+    /**
+     * Get the canvas padding (offset from edges)
+     */
+    function getCanvasPadding() {
+      return 50;
+    }
+
+    /**
+     * Get the available canvas width for drawing
+     */
+    function getDrawableCanvasWidth() {
+      return canvas.width - 100;
+    }
+
+    /**
+     * Get the available canvas height for drawing
+     */
+    function getDrawableCanvasHeight() {
+      return canvas.height - 100;
+    }
+
+    /**
+     * Get the scale factors for X and Y axes
+     */
+    function getScaleFactors() {
+      const scaleX = getDrawableCanvasWidth() / fieldLength;
+      const scaleY = getDrawableCanvasHeight() / fieldWidth;
+      return { scaleX, scaleY };
+    }
+
+    // ============================================================
     // QUATERNION CONVERSION FUNCTIONS
     // ============================================================
     
@@ -556,7 +590,6 @@ input[type="file"]::file-selector-button:active {
      */
     function addOrUpdateTag() {
       const id = parseInt(document.getElementById('tagId').value);
-
       let x = parseFloat(document.getElementById('tagX').value);
       let y = parseFloat(document.getElementById('tagY').value);
 
@@ -600,43 +633,46 @@ input[type="file"]::file-selector-button:active {
       fieldWidth = parseFloat(document.getElementById('fieldWidth').value) / 39.3701 || 1;
       fieldLength = parseFloat(document.getElementById('fieldLength').value) / 39.3701 || 1;
 
+      const padding = getCanvasPadding();
+      const drawableWidth = getDrawableCanvasWidth();
+      const drawableHeight = getDrawableCanvasHeight();
+
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
       // Draw background image if available
       if (backgroundImage) {
         const imgAspectRatio = backgroundImage.width / backgroundImage.height;
-        const canvasAspectRatio = (canvas.width - 100) / (canvas.height - 100);
+        const canvasAspectRatio = drawableWidth / drawableHeight;
         
         let drawWidth, drawHeight, offsetX, offsetY;
         
         // Fit image to canvas while maintaining aspect ratio
         if (imgAspectRatio > canvasAspectRatio) {
-          drawWidth = canvas.width - 100;
+          drawWidth = drawableWidth;
           drawHeight = drawWidth / imgAspectRatio;
-          offsetX = 50;
-          offsetY = 50 + (canvas.height - 100 - drawHeight) / 2;
+          offsetX = padding;
+          offsetY = padding + (drawableHeight - drawHeight) / 2;
         } else {
-          drawHeight = canvas.height - 100;
+          drawHeight = drawableHeight;
           drawWidth = drawHeight * imgAspectRatio;
-          offsetX = 50 + (canvas.width - 100 - drawWidth) / 2;
-          offsetY = 50;
+          offsetX = padding + (drawableWidth - drawWidth) / 2;
+          offsetY = padding;
         }
         
         ctx.drawImage(backgroundImage, offsetX, offsetY, drawWidth, drawHeight);
       } else {
         // Draw default field background
         ctx.fillStyle = '#333';
-        ctx.fillRect(50, 50, canvas.width - 100, canvas.height - 100);
+        ctx.fillRect(padding, padding, drawableWidth, drawableHeight);
       }
 
-      const scaleX = (canvas.width - 100) / fieldLength;
-      const scaleY = (canvas.height - 100) / fieldWidth;
+      const { scaleX, scaleY } = getScaleFactors();
 
       // Draw constant tags (green, non-draggable)
       for (const tag of constantTags) {
-        const x = tag.pose.translation.x * scaleX + 50;
-        const y = (fieldWidth - tag.pose.translation.y) * scaleY + 50;
+        const x = tag.pose.translation.x * scaleX + padding;
+        const y = (fieldWidth - tag.pose.translation.y) * scaleY + padding;
 
         // Draw constant tag in green
         ctx.fillStyle = '#4CAF50';
@@ -666,8 +702,8 @@ input[type="file"]::file-selector-button:active {
 
       // Draw draggable tags (blue/red)
       for (const tag of tags) {
-        const x = tag.pose.translation.x * scaleX + 50;
-        const y = (fieldWidth - tag.pose.translation.y) * scaleY + 50;
+        const x = tag.pose.translation.x * scaleX + padding;
+        const y = (fieldWidth - tag.pose.translation.y) * scaleY + padding;
 
         // Different color for selected vs unselected
         ctx.fillStyle = selectedTags.has(tag.ID) ? '#ff0000' : '#0077ff';
@@ -748,12 +784,12 @@ input[type="file"]::file-selector-button:active {
      * Get tag at canvas coordinates (only draggable tags)
      */
     function getTagAtPosition(canvasX, canvasY) {
-      const scaleX = (canvas.width - 100) / fieldLength;
-      const scaleY = (canvas.height - 100) / fieldWidth;
+      const { scaleX, scaleY } = getScaleFactors();
+      const padding = getCanvasPadding();
 
       for (const tag of tags) {
-        const x = tag.pose.translation.x * scaleX + 50;
-        const y = (fieldWidth - tag.pose.translation.y) * scaleY + 50;
+        const x = tag.pose.translation.x * scaleX + padding;
+        const y = (fieldWidth - tag.pose.translation.y) * scaleY + padding;
         const dx = canvasX - x;
         const dy = canvasY - y;
         if (Math.sqrt(dx * dx + dy * dy) < 10) {
@@ -775,10 +811,10 @@ input[type="file"]::file-selector-button:active {
         isDragging = true;
         draggedTag = tag;
         
-        const scaleX = (canvas.width - 100) / fieldLength;
-        const scaleY = (canvas.height - 100) / fieldWidth;
-        const tagX = tag.pose.translation.x * scaleX + 50;
-        const tagY = (fieldWidth - tag.pose.translation.y) * scaleY + 50;
+        const { scaleX, scaleY } = getScaleFactors();
+        const padding = getCanvasPadding();
+        const tagX = tag.pose.translation.x * scaleX + padding;
+        const tagY = (fieldWidth - tag.pose.translation.y) * scaleY + padding;
         
         dragOffsetX = clickX - tagX;
         dragOffsetY = clickY - tagY;
@@ -792,15 +828,15 @@ input[type="file"]::file-selector-button:active {
      */
     canvas.addEventListener('mousemove', function(e) {
       if (isDragging && draggedTag) {
-        const scaleX = (canvas.width - 100) / fieldLength;
-        const scaleY = (canvas.height - 100) / fieldWidth;
+        const { scaleX, scaleY } = getScaleFactors();
+        const padding = getCanvasPadding();
         
         const canvasX = e.offsetX - dragOffsetX;
         const canvasY = e.offsetY - dragOffsetY;
         
         // Convert canvas coordinates back to field coordinates
-        draggedTag.pose.translation.x = (canvasX - 50) / scaleX;
-        draggedTag.pose.translation.y = fieldWidth - (canvasY - 50) / scaleY;
+        draggedTag.pose.translation.x = (canvasX - padding) / scaleX;
+        draggedTag.pose.translation.y = fieldWidth - (canvasY - padding) / scaleY;
         
         drawField();
         updateTagList();
