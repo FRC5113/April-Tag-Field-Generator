@@ -249,6 +249,14 @@ input[type="file"]::file-selector-button:active {
 
   <script>
     // ============================================================
+    // CONSTANTS
+    // ============================================================
+    
+    const METERS_TO_INCHES = METERS_TO_INCHES;  // Conversion factor from meters to inches
+    const CANVAS_PADDING = 50;  // Padding around the canvas drawing area
+    const DRAWABLE_MARGIN = 100;  // Total margin (padding * 2) for drawable area
+
+    // ============================================================
     // INITIALIZATION AND STATE MANAGEMENT
     // ============================================================
     
@@ -297,21 +305,21 @@ input[type="file"]::file-selector-button:active {
      * Get the canvas padding (offset from edges)
      */
     function getCanvasPadding() {
-      return 50;
+      return CANVAS_PADDING;
     }
 
     /**
      * Get the available canvas width for drawing
      */
     function getDrawableCanvasWidth() {
-      return canvas.width - 100;
+      return canvas.width - DRAWABLE_MARGIN;
     }
 
     /**
      * Get the available canvas height for drawing
      */
     function getDrawableCanvasHeight() {
-      return canvas.height - 100;
+      return canvas.height - DRAWABLE_MARGIN;
     }
 
     /**
@@ -447,7 +455,7 @@ input[type="file"]::file-selector-button:active {
         
         const label = document.createElement('label');
         label.htmlFor = `constant-tag-${index}`;
-        label.textContent = `ID: ${tag.ID} (X: ${(tag.pose.translation.x * 39.3701).toFixed(1)}, Y: ${(tag.pose.translation.y * 39.3701).toFixed(1)})`;
+        label.textContent = `ID: ${tag.ID} (X: ${(tag.pose.translation.x * METERS_TO_INCHES).toFixed(1)}, Y: ${(tag.pose.translation.y * METERS_TO_INCHES).toFixed(1)})`;
         
         div.appendChild(checkbox);
         div.appendChild(label);
@@ -505,9 +513,9 @@ input[type="file"]::file-selector-button:active {
           div.style.borderColor = '#4CAF50';
           div.innerHTML = `
             <strong>ID: ${tag.ID}</strong> (Constant)<br>
-            X: ${(tag.pose.translation.x * 39.3701).toFixed(2)} in,
-            Y: ${(tag.pose.translation.y * 39.3701).toFixed(2)} in,
-            Z: ${(tag.pose.translation.z * 39.3701).toFixed(2)} in
+            X: ${(tag.pose.translation.x * METERS_TO_INCHES).toFixed(2)} in,
+            Y: ${(tag.pose.translation.y * METERS_TO_INCHES).toFixed(2)} in,
+            Z: ${(tag.pose.translation.z * METERS_TO_INCHES).toFixed(2)} in
             <button onclick="removeConstantTag(${index})" style="margin-top: 0.3rem; width: 100%; background: #d32f2f;">Remove</button>
           `;
           tagList.appendChild(div);
@@ -527,9 +535,9 @@ input[type="file"]::file-selector-button:active {
           div.className = 'tag-item';
           div.innerHTML = `
             <strong>ID:</strong> <input type="number" value="${tag.ID}" onchange="editTag(${index}, 'ID', this.value)"><br>
-            <strong>X:</strong> <input type="number" value="${(tag.pose.translation.x * 39.3701).toFixed(2)}" onchange="editTag(${index}, 'x', this.value)">
-            <strong>Y:</strong> <input type="number" value="${(tag.pose.translation.y * 39.3701).toFixed(2)}" onchange="editTag(${index}, 'y', this.value)">
-            <strong>Z:</strong> <input type="number" value="${(tag.pose.translation.z * 39.3701).toFixed(2)}" onchange="editTag(${index}, 'z', this.value)">
+            <strong>X:</strong> <input type="number" value="${(tag.pose.translation.x * METERS_TO_INCHES).toFixed(2)}" onchange="editTag(${index}, 'x', this.value)">
+            <strong>Y:</strong> <input type="number" value="${(tag.pose.translation.y * METERS_TO_INCHES).toFixed(2)}" onchange="editTag(${index}, 'y', this.value)">
+            <strong>Z:</strong> <input type="number" value="${(tag.pose.translation.z * METERS_TO_INCHES).toFixed(2)}" onchange="editTag(${index}, 'z', this.value)">
             <button onclick="removeTag(${index})" style="margin-top: 0.3rem; width: 100%; background: #d32f2f;">Remove</button>
           `;
           tagList.appendChild(div);
@@ -562,7 +570,7 @@ input[type="file"]::file-selector-button:active {
      */
     function editTag(index, field, value) {
       if (field === 'ID') tags[index].ID = parseInt(value);
-      else tags[index].pose.translation[field] = parseFloat(value) / 39.3701;
+      else tags[index].pose.translation[field] = parseFloat(value) / METERS_TO_INCHES;
       drawField();
     }
 
@@ -571,9 +579,9 @@ input[type="file"]::file-selector-button:active {
      */
     function populateFormFromTag(tag) {
       document.getElementById('tagId').value = tag.ID;
-      document.getElementById('tagX').value = (tag.pose.translation.x * 39.3701).toFixed(2);
-      document.getElementById('tagY').value = (tag.pose.translation.y * 39.3701).toFixed(2);
-      document.getElementById('tagZ').value = (tag.pose.translation.z * 39.3701).toFixed(2);
+      document.getElementById('tagX').value = (tag.pose.translation.x * METERS_TO_INCHES).toFixed(2);
+      document.getElementById('tagY').value = (tag.pose.translation.y * METERS_TO_INCHES).toFixed(2);
+      document.getElementById('tagZ').value = (tag.pose.translation.z * METERS_TO_INCHES).toFixed(2);
 
       const euler = quaternionToEuler(tag.pose.rotation.quaternion);
       document.getElementById('tagRoll').value = radiansToDegrees(euler.roll).toFixed(2);
@@ -597,9 +605,9 @@ input[type="file"]::file-selector-button:active {
         ID: id,
         pose: {
           translation: {
-            x: x / 39.3701,
-            y: y / 39.3701,
-            z: parseFloat(document.getElementById('tagZ').value) / 39.3701,
+            x: x / METERS_TO_INCHES,
+            y: y / METERS_TO_INCHES,
+            z: parseFloat(document.getElementById('tagZ').value) / METERS_TO_INCHES,
           },
           rotation: {
             quaternion: eulerToQuaternion(
@@ -630,8 +638,8 @@ input[type="file"]::file-selector-button:active {
      * Draw the field with background, constant tags, and draggable tags
      */
     function drawField() {
-      fieldWidth = parseFloat(document.getElementById('fieldWidth').value) / 39.3701 || 1;
-      fieldLength = parseFloat(document.getElementById('fieldLength').value) / 39.3701 || 1;
+      fieldWidth = parseFloat(document.getElementById('fieldWidth').value) / METERS_TO_INCHES || 1;
+      fieldLength = parseFloat(document.getElementById('fieldLength').value) / METERS_TO_INCHES || 1;
 
       const padding = getCanvasPadding();
       const drawableWidth = getDrawableCanvasWidth();
@@ -765,8 +773,8 @@ input[type="file"]::file-selector-button:active {
           const json = JSON.parse(e.target.result);
           tags = json.tags || [];
           constantTags = [];  // Clear constant tags
-          document.getElementById('fieldWidth').value = json.field.width * 39.3701;
-          document.getElementById('fieldLength').value = json.field.length * 39.3701;
+          document.getElementById('fieldWidth').value = json.field.width * METERS_TO_INCHES;
+          document.getElementById('fieldLength').value = json.field.length * METERS_TO_INCHES;
           updateTagList();
           drawField();
         } catch (error) {
@@ -879,15 +887,15 @@ input[type="file"]::file-selector-button:active {
     canvas.addEventListener('click', function(e) {
       if (isDragging) return;  // Don't select if we just finished dragging
       
-      const scaleX = (canvas.width - 100) / fieldLength;
-      const scaleY = (canvas.height - 100) / fieldWidth;
+      const { scaleX, scaleY } = getScaleFactors();
+      const padding = getCanvasPadding();
       const clickX = e.offsetX;
       const clickY = e.offsetY;
 
       // Check draggable tags
       for (const tag of tags) {
-        const x = tag.pose.translation.x * scaleX + 50;
-        const y = (fieldWidth - tag.pose.translation.y) * scaleY + 50;
+        const x = tag.pose.translation.x * scaleX + padding;
+        const y = (fieldWidth - tag.pose.translation.y) * scaleY + padding;
         const dx = clickX - x;
         const dy = clickY - y;
         if (Math.sqrt(dx * dx + dy * dy) < 10) {
