@@ -164,19 +164,66 @@ input[type="file"]::file-selector-button:active {
   background-color: #e5e7eb;
 }
 
+/* Constant tags checkbox styles */
+.constant-tag-checkbox {
+  display: flex;
+  align-items: center;
+  padding: 0.3rem;
+  background: #2a2a2a;
+  margin-bottom: 0.3rem;
+  border-radius: 3px;
+}
+
+.constant-tag-checkbox input[type="checkbox"] {
+  width: auto;
+  margin-right: 0.5rem;
+  cursor: pointer;
+}
+
+.constant-tag-checkbox label {
+  margin: 0;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+
+/* Canvas cursor styles */
+#canvas.dragging {
+  cursor: grabbing;
+}
+
+#canvas.draggable-hover {
+  cursor: grab;
+}
 
   </style>
 </head>
 <body>
   <div id="sidebar">
     <h2>AprilTag Editor</h2>
-    <label id="fileinput>">Import JSON:</label>
-    <input id="fileinput" type="file" accept=".json" onchange="importJSON(event)" >
+    
+    <!-- Field Configuration Section -->
     <label>Name: <input type="text" id="fieldName"></label>
     <label>Width (in): <input type="number" id="fieldWidth"></label>
     <label>Length (in): <input type="number" id="fieldLength"></label>
 
-    <h3>Add/Edit Tag</h3>
+    <!-- Background Image Section -->
+    <h3>Background Image</h3>
+    <label>Background Image:</label>
+    <input id="bgImageInput" type="file" accept="image/*" onchange="loadBackgroundImage(event)">
+    <button onclick="clearBackgroundImage()">Clear Background</button>
+
+    <!-- Import JSON for Constant Tags Section -->
+    <h3>Import Constant Tags</h3>
+    <label>Import JSON for Constants:</label>
+    <input id="constantTagsInput" type="file" accept=".json" onchange="importConstantTags(event)">
+    <div id="constantTagsSelection" style="display:none; margin-top: 0.5rem;">
+      <p style="font-size: 0.9em; color: #aaa;">Select tags to set as constants:</p>
+      <div id="constantTagsList"></div>
+      <button onclick="applyConstantTags()">Apply Constant Tags</button>
+    </div>
+
+    <!-- Add/Edit Draggable Tag Section -->
+    <h3>Add/Edit Draggable Tag</h3>
     <div class="tag-form">
       <label>ID: <input type="number" id="tagId"></label>
       <label>X (in): <input type="number" id="tagX"></label>
@@ -188,31 +235,67 @@ input[type="file"]::file-selector-button:active {
       <button onclick="addOrUpdateTag()">Save Tag</button>
     </div>
 
+    <!-- Import/Export All Tags Section -->
+    <h3>Import/Export All</h3>
+    <label>Import All Tags JSON:</label>
+    <input id="fileinput" type="file" accept=".json" onchange="importJSON(event)">
     <button onclick="downloadJSON()">Export JSON</button>
     
-
+    <!-- Tag List Section -->
+    <h3>Tags on Field</h3>
     <div class="tag-list" id="tagList"></div>
   </div>
   <canvas id="canvas"></canvas>
 
   <script>
+    // ============================================================
+    // INITIALIZATION AND STATE MANAGEMENT
+    // ============================================================
+    
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth - 300;
     canvas.height = window.innerHeight;
 
-    let tags = [];
-    let selectedTags = new Set();
+    // State variables
+    let tags = [];  // All draggable tags
+    let constantTags = [];  // Constant (non-draggable) tags
+    let importedTagsForSelection = [];  // Temporary storage for imported tags before selection
+    let selectedTags = new Set();  // Currently selected tags for editing
     let fieldWidth = 1, fieldLength = 1;
+    let backgroundImage = null;  // Background image object
+    
+    // Drag and drop state
+    let isDragging = false;
+    let draggedTag = null;
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
 
+    // ============================================================
+    // UTILITY FUNCTIONS - ANGLE CONVERSIONS
+    // ============================================================
+    
+    /**
+     * Convert degrees to radians
+     */
     function degreesToRadians(deg) {
       return deg * Math.PI / 180;
     }
 
+    /**
+     * Convert radians to degrees
+     */
     function radiansToDegrees(rad) {
       return rad * 180 / Math.PI;
     }
 
+    // ============================================================
+    // QUATERNION CONVERSION FUNCTIONS
+    // ============================================================
+    
+    /**
+     * Convert Euler angles (roll, pitch, yaw) to quaternion
+     */
     function eulerToQuaternion(roll, pitch, yaw) {
       const cr = Math.cos(roll / 2);
       const sr = Math.sin(roll / 2);
@@ -229,6 +312,9 @@ input[type="file"]::file-selector-button:active {
       };
     }
 
+    /**
+     * Convert quaternion to Euler angles (roll, pitch, yaw)
+     */
     function quaternionToEuler(q) {
       const sinr_cosp = 2 * (q.W * q.X + q.Y * q.Z);
       const cosr_cosp = 1 - 2 * (q.X * q.X + q.Y * q.Y);
@@ -244,28 +330,201 @@ input[type="file"]::file-selector-button:active {
       return { roll, pitch, yaw };
     }
 
+    // ============================================================
+    // BACKGROUND IMAGE FUNCTIONS
+    // ============================================================
+    
+    /**
+     * Load a background image from file input
+     */
+    function loadBackgroundImage(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const img = new Image();
+          img.onload = function() {
+            backgroundImage = img;
+            drawField();
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    /**
+     * Clear the background image
+     */
+    function clearBackgroundImage() {
+      backgroundImage = null;
+      drawField();
+    }
+
+    // ============================================================
+    // CONSTANT TAGS IMPORT AND SELECTION
+    // ============================================================
+    
+    /**
+     * Import JSON file for selecting constant tags
+     */
+    function importConstantTags(event) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const json = JSON.parse(e.target.result);
+          importedTagsForSelection = json.tags || [];
+          
+          // Show selection UI
+          displayConstantTagsSelection();
+        } catch (error) {
+          alert('Error parsing JSON file: ' + error.message);
+        }
+      };
+      reader.readAsText(event.target.files[0]);
+    }
+
+    /**
+     * Display checkboxes for selecting which tags should be constant
+     */
+    function displayConstantTagsSelection() {
+      const container = document.getElementById('constantTagsSelection');
+      const list = document.getElementById('constantTagsList');
+      list.innerHTML = '';
+      
+      importedTagsForSelection.forEach((tag, index) => {
+        const div = document.createElement('div');
+        div.className = 'constant-tag-checkbox';
+        
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `constant-tag-${index}`;
+        checkbox.checked = true;  // Default to checked
+        
+        const label = document.createElement('label');
+        label.htmlFor = `constant-tag-${index}`;
+        label.textContent = `ID: ${tag.ID} (X: ${(tag.pose.translation.x * 39.3701).toFixed(1)}, Y: ${(tag.pose.translation.y * 39.3701).toFixed(1)})`;
+        
+        div.appendChild(checkbox);
+        div.appendChild(label);
+        list.appendChild(div);
+      });
+      
+      container.style.display = 'block';
+    }
+
+    /**
+     * Apply selected tags as constants on the field
+     */
+    function applyConstantTags() {
+      constantTags = [];
+      
+      importedTagsForSelection.forEach((tag, index) => {
+        const checkbox = document.getElementById(`constant-tag-${index}`);
+        if (checkbox && checkbox.checked) {
+          // Mark tag as constant
+          constantTags.push({...tag, isConstant: true});
+        }
+      });
+      
+      // Hide selection UI
+      document.getElementById('constantTagsSelection').style.display = 'none';
+      
+      // Clear the file input
+      document.getElementById('constantTagsInput').value = '';
+      
+      updateTagList();
+      drawField();
+    }
+
+    // ============================================================
+    // TAG LIST UI UPDATE
+    // ============================================================
+    
+    /**
+     * Update the tag list display in the sidebar
+     */
     function updateTagList() {
       const tagList = document.getElementById('tagList');
       tagList.innerHTML = '';
-      tags.forEach((tag, index) => {
-        const div = document.createElement('div');
-        div.className = 'tag-item';
-        div.innerHTML = `
-          ID: <input type="number" value="${tag.ID}" onchange="editTag(${index}, 'ID', this.value)"><br>
-          X: <input type="number" value="${(tag.pose.translation.x * 39.3701).toFixed(2)}" onchange="editTag(${index}, 'x', this.value)">
-          Y: <input type="number" value="${(tag.pose.translation.y * 39.3701).toFixed(2)}" onchange="editTag(${index}, 'y', this.value)">
-          Z: <input type="number" value="${(tag.pose.translation.z * 39.3701).toFixed(2)}" onchange="editTag(${index}, 'z', this.value)">
-        `;
-        tagList.appendChild(div);
-      });
+      
+      // Display constant tags
+      if (constantTags.length > 0) {
+        const constantHeader = document.createElement('div');
+        constantHeader.innerHTML = '<strong style="color: #61dafb;">Constant Tags (Fixed):</strong>';
+        constantHeader.style.marginBottom = '0.5rem';
+        tagList.appendChild(constantHeader);
+        
+        constantTags.forEach((tag, index) => {
+          const div = document.createElement('div');
+          div.className = 'tag-item';
+          div.style.borderColor = '#4CAF50';
+          div.innerHTML = `
+            <strong>ID: ${tag.ID}</strong> (Constant)<br>
+            X: ${(tag.pose.translation.x * 39.3701).toFixed(2)} in,
+            Y: ${(tag.pose.translation.y * 39.3701).toFixed(2)} in,
+            Z: ${(tag.pose.translation.z * 39.3701).toFixed(2)} in
+            <button onclick="removeConstantTag(${index})" style="margin-top: 0.3rem; width: 100%; background: #d32f2f;">Remove</button>
+          `;
+          tagList.appendChild(div);
+        });
+      }
+      
+      // Display draggable tags
+      if (tags.length > 0) {
+        const draggableHeader = document.createElement('div');
+        draggableHeader.innerHTML = '<strong style="color: #61dafb; margin-top: 1rem;">Draggable Tags:</strong>';
+        draggableHeader.style.marginBottom = '0.5rem';
+        draggableHeader.style.marginTop = '1rem';
+        tagList.appendChild(draggableHeader);
+        
+        tags.forEach((tag, index) => {
+          const div = document.createElement('div');
+          div.className = 'tag-item';
+          div.innerHTML = `
+            <strong>ID:</strong> <input type="number" value="${tag.ID}" onchange="editTag(${index}, 'ID', this.value)"><br>
+            <strong>X:</strong> <input type="number" value="${(tag.pose.translation.x * 39.3701).toFixed(2)}" onchange="editTag(${index}, 'x', this.value)">
+            <strong>Y:</strong> <input type="number" value="${(tag.pose.translation.y * 39.3701).toFixed(2)}" onchange="editTag(${index}, 'y', this.value)">
+            <strong>Z:</strong> <input type="number" value="${(tag.pose.translation.z * 39.3701).toFixed(2)}" onchange="editTag(${index}, 'z', this.value)">
+            <button onclick="removeTag(${index})" style="margin-top: 0.3rem; width: 100%; background: #d32f2f;">Remove</button>
+          `;
+          tagList.appendChild(div);
+        });
+      }
     }
 
+    /**
+     * Remove a constant tag
+     */
+    function removeConstantTag(index) {
+      constantTags.splice(index, 1);
+      updateTagList();
+      drawField();
+    }
+
+    /**
+     * Remove a draggable tag
+     */
+    function removeTag(index) {
+      const removedTag = tags[index];
+      selectedTags.delete(removedTag.ID);
+      tags.splice(index, 1);
+      updateTagList();
+      drawField();
+    }
+
+    /**
+     * Edit a tag's properties inline
+     */
     function editTag(index, field, value) {
       if (field === 'ID') tags[index].ID = parseInt(value);
       else tags[index].pose.translation[field] = parseFloat(value) / 39.3701;
       drawField();
     }
 
+    /**
+     * Populate the form with a tag's data for editing
+     */
     function populateFormFromTag(tag) {
       document.getElementById('tagId').value = tag.ID;
       document.getElementById('tagX').value = (tag.pose.translation.x * 39.3701).toFixed(2);
@@ -278,13 +537,18 @@ input[type="file"]::file-selector-button:active {
       document.getElementById('tagYaw').value = radiansToDegrees(euler.yaw).toFixed(2);
     }
 
+    // ============================================================
+    // TAG CREATION AND MODIFICATION
+    // ============================================================
+    
+    /**
+     * Add a new tag or update an existing draggable tag
+     */
     function addOrUpdateTag() {
       const id = parseInt(document.getElementById('tagId').value);
 
       let x = parseFloat(document.getElementById('tagX').value);
       let y = parseFloat(document.getElementById('tagY').value);
-
-
 
       const tagData = {
         ID: id,
@@ -315,45 +579,122 @@ input[type="file"]::file-selector-button:active {
       drawField();
     }
 
+    // ============================================================
+    // CANVAS RENDERING
+    // ============================================================
+    
+    /**
+     * Draw the field with background, constant tags, and draggable tags
+     */
     function drawField() {
-        fieldWidth = parseFloat(document.getElementById('fieldWidth').value) / 39.3701 || 1;
-        fieldLength = parseFloat(document.getElementById('fieldLength').value) / 39.3701 || 1;
+      fieldWidth = parseFloat(document.getElementById('fieldWidth').value) / 39.3701 || 1;
+      fieldLength = parseFloat(document.getElementById('fieldLength').value) / 39.3701 || 1;
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw background image if available
+      if (backgroundImage) {
+        const imgAspectRatio = backgroundImage.width / backgroundImage.height;
+        const canvasAspectRatio = (canvas.width - 100) / (canvas.height - 100);
+        
+        let drawWidth, drawHeight, offsetX, offsetY;
+        
+        // Fit image to canvas while maintaining aspect ratio
+        if (imgAspectRatio > canvasAspectRatio) {
+          drawWidth = canvas.width - 100;
+          drawHeight = drawWidth / imgAspectRatio;
+          offsetX = 50;
+          offsetY = 50 + (canvas.height - 100 - drawHeight) / 2;
+        } else {
+          drawHeight = canvas.height - 100;
+          drawWidth = drawHeight * imgAspectRatio;
+          offsetX = 50 + (canvas.width - 100 - drawWidth) / 2;
+          offsetY = 50;
+        }
+        
+        ctx.drawImage(backgroundImage, offsetX, offsetY, drawWidth, drawHeight);
+      } else {
+        // Draw default field background
         ctx.fillStyle = '#333';
-        ctx.fillRect(50, 50, canvas.width - 150, canvas.height - 150);
+        ctx.fillRect(50, 50, canvas.width - 100, canvas.height - 100);
+      }
 
-        const scaleX = (canvas.width - 150) / fieldLength;
-        const scaleY = (canvas.height - 150) / fieldWidth;
+      const scaleX = (canvas.width - 100) / fieldLength;
+      const scaleY = (canvas.height - 100) / fieldWidth;
 
-        // Apply 180-degree rotation by flipping the y position
-        for (const tag of tags) {
-            // Reverse the y position for 180-degree rotation
-            const x = tag.pose.translation.x * scaleX + 50;
-            const y = (fieldWidth - tag.pose.translation.y) * scaleY + 50; // Flip only the Y-axis
+      // Draw constant tags (green, non-draggable)
+      for (const tag of constantTags) {
+        const x = tag.pose.translation.x * scaleX + 50;
+        const y = (fieldWidth - tag.pose.translation.y) * scaleY + 50;
 
-            ctx.fillStyle = selectedTags.has(tag.ID) ? '#ff0000' : '#0077ff';
-            ctx.beginPath();
-            ctx.arc(x, y, 7, 0, 7 * Math.PI);
-            ctx.fill();
-            ctx.fillStyle = '#fff';
-            ctx.fillText(`ID: ${tag.ID}`, x + 8, y);
+        // Draw constant tag in green
+        ctx.fillStyle = '#4CAF50';
+        ctx.beginPath();
+        ctx.arc(x, y, 8, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Draw border to make it more visible
+        ctx.strokeStyle = '#81C784';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Draw label
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 12px Arial';
+        ctx.fillText(`ID: ${tag.ID} (C)`, x + 10, y);
 
-            const angle = Math.atan2(-tag.pose.rotation.quaternion.Z, tag.pose.rotation.quaternion.W) * 2;
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            ctx.lineTo(x + Math.cos(angle) * 20, y + Math.sin(angle) * 20);
-            ctx.stroke();
-        }
-        }
+        // Draw orientation arrow
+        const angle = Math.atan2(-tag.pose.rotation.quaternion.Z, tag.pose.rotation.quaternion.W) * 2;
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(angle) * 20, y + Math.sin(angle) * 20);
+        ctx.stroke();
+      }
 
+      // Draw draggable tags (blue/red)
+      for (const tag of tags) {
+        const x = tag.pose.translation.x * scaleX + 50;
+        const y = (fieldWidth - tag.pose.translation.y) * scaleY + 50;
+
+        // Different color for selected vs unselected
+        ctx.fillStyle = selectedTags.has(tag.ID) ? '#ff0000' : '#0077ff';
+        ctx.beginPath();
+        ctx.arc(x, y, 7, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Draw label
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px Arial';
+        ctx.fillText(`ID: ${tag.ID}`, x + 10, y);
+
+        // Draw orientation arrow
+        const angle = Math.atan2(-tag.pose.rotation.quaternion.Z, tag.pose.rotation.quaternion.W) * 2;
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(angle) * 20, y + Math.sin(angle) * 20);
+        ctx.stroke();
+      }
+    }
+
+    // ============================================================
+    // IMPORT/EXPORT FUNCTIONS
+    // ============================================================
+    
+    /**
+     * Export all tags (both constant and draggable) to JSON
+     */
     function downloadJSON() {
       const data = {
         field: {
           width: fieldWidth,
           length: fieldLength
         },
-        tags
+        tags: [...constantTags, ...tags]
       };
       const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
       const url = URL.createObjectURL(blob);
@@ -363,28 +704,139 @@ input[type="file"]::file-selector-button:active {
       a.click();
     }
 
+    /**
+     * Import all tags from JSON file (replaces current tags)
+     */
     function importJSON(event) {
       const reader = new FileReader();
       reader.onload = function(e) {
-        const json = JSON.parse(e.target.result);
-        tags = json.tags || [];
-        document.getElementById('fieldWidth').value = json.field.width * 39.3701;
-        document.getElementById('fieldLength').value = json.field.length * 39.3701;+
-        updateTagList();
-        drawField();
+        try {
+          const json = JSON.parse(e.target.result);
+          tags = json.tags || [];
+          constantTags = [];  // Clear constant tags
+          document.getElementById('fieldWidth').value = json.field.width * 39.3701;
+          document.getElementById('fieldLength').value = json.field.length * 39.3701;
+          updateTagList();
+          drawField();
+        } catch (error) {
+          alert('Error parsing JSON file: ' + error.message);
+        }
       };
       reader.readAsText(event.target.files[0]);
     }
 
-    canvas.addEventListener('click', function (e) {
+    // ============================================================
+    // DRAG AND DROP FUNCTIONALITY
+    // ============================================================
+    
+    /**
+     * Get tag at canvas coordinates (only draggable tags)
+     */
+    function getTagAtPosition(canvasX, canvasY) {
+      const scaleX = (canvas.width - 100) / fieldLength;
+      const scaleY = (canvas.height - 100) / fieldWidth;
+
+      for (const tag of tags) {
+        const x = tag.pose.translation.x * scaleX + 50;
+        const y = (fieldWidth - tag.pose.translation.y) * scaleY + 50;
+        const dx = canvasX - x;
+        const dy = canvasY - y;
+        if (Math.sqrt(dx * dx + dy * dy) < 10) {
+          return tag;
+        }
+      }
+      return null;
+    }
+
+    /**
+     * Handle mouse down - start dragging
+     */
+    canvas.addEventListener('mousedown', function(e) {
+      const clickX = e.offsetX;
+      const clickY = e.offsetY;
+      
+      const tag = getTagAtPosition(clickX, clickY);
+      if (tag) {
+        isDragging = true;
+        draggedTag = tag;
+        
+        const scaleX = (canvas.width - 100) / fieldLength;
+        const scaleY = (canvas.height - 100) / fieldWidth;
+        const tagX = tag.pose.translation.x * scaleX + 50;
+        const tagY = (fieldWidth - tag.pose.translation.y) * scaleY + 50;
+        
+        dragOffsetX = clickX - tagX;
+        dragOffsetY = clickY - tagY;
+        
+        canvas.classList.add('dragging');
+      }
+    });
+
+    /**
+     * Handle mouse move - update dragged tag position
+     */
+    canvas.addEventListener('mousemove', function(e) {
+      if (isDragging && draggedTag) {
+        const scaleX = (canvas.width - 100) / fieldLength;
+        const scaleY = (canvas.height - 100) / fieldWidth;
+        
+        const canvasX = e.offsetX - dragOffsetX;
+        const canvasY = e.offsetY - dragOffsetY;
+        
+        // Convert canvas coordinates back to field coordinates
+        draggedTag.pose.translation.x = (canvasX - 50) / scaleX;
+        draggedTag.pose.translation.y = fieldWidth - (canvasY - 50) / scaleY;
+        
+        drawField();
+        updateTagList();
+      } else {
+        // Update cursor based on hover
+        const tag = getTagAtPosition(e.offsetX, e.offsetY);
+        if (tag) {
+          canvas.classList.add('draggable-hover');
+        } else {
+          canvas.classList.remove('draggable-hover');
+        }
+      }
+    });
+
+    /**
+     * Handle mouse up - stop dragging
+     */
+    canvas.addEventListener('mouseup', function(e) {
+      if (isDragging) {
+        isDragging = false;
+        draggedTag = null;
+        canvas.classList.remove('dragging');
+      }
+    });
+
+    /**
+     * Handle mouse leave - stop dragging if mouse leaves canvas
+     */
+    canvas.addEventListener('mouseleave', function(e) {
+      if (isDragging) {
+        isDragging = false;
+        draggedTag = null;
+        canvas.classList.remove('dragging');
+      }
+    });
+
+    /**
+     * Handle click - select tag for editing
+     */
+    canvas.addEventListener('click', function(e) {
+      if (isDragging) return;  // Don't select if we just finished dragging
+      
       const scaleX = (canvas.width - 100) / fieldLength;
       const scaleY = (canvas.height - 100) / fieldWidth;
       const clickX = e.offsetX;
       const clickY = e.offsetY;
 
+      // Check draggable tags
       for (const tag of tags) {
-        const x = tag.pose.translation.x * scaleX ;
-        const y = tag.pose.translation.y * scaleY ;
+        const x = tag.pose.translation.x * scaleX + 50;
+        const y = (fieldWidth - tag.pose.translation.y) * scaleY + 50;
         const dx = clickX - x;
         const dy = clickY - y;
         if (Math.sqrt(dx * dx + dy * dy) < 10) {
@@ -399,6 +851,22 @@ input[type="file"]::file-selector-button:active {
         }
       }
     });
+
+    // ============================================================
+    // WINDOW RESIZE HANDLER
+    // ============================================================
+    
+    /**
+     * Handle window resize to adjust canvas size
+     */
+    window.addEventListener('resize', function() {
+      canvas.width = window.innerWidth - 300;
+      canvas.height = window.innerHeight;
+      drawField();
+    });
+
+    // Initialize the field on load
+    drawField();
   </script>
 </body>
 </html>
