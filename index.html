@@ -347,6 +347,11 @@ input[type="file"]::file-selector-button:active {
             backgroundImage = img;
             drawField();
           };
+          img.onerror = function() {
+            alert('Error loading image. Please select a valid image file.');
+            backgroundImage = null;
+            drawField();
+          };
           img.src = e.target.result;
         };
         reader.readAsDataURL(file);
@@ -369,6 +374,11 @@ input[type="file"]::file-selector-button:active {
      * Import JSON file for selecting constant tags
      */
     function importConstantTags(event) {
+      const file = event.target.files[0];
+      if (!file) {
+        return;
+      }
+      
       const reader = new FileReader();
       reader.onload = function(e) {
         try {
@@ -381,7 +391,7 @@ input[type="file"]::file-selector-button:active {
           alert('Error parsing JSON file: ' + error.message);
         }
       };
-      reader.readAsText(event.target.files[0]);
+      reader.readAsText(file);
     }
 
     /**
@@ -708,6 +718,11 @@ input[type="file"]::file-selector-button:active {
      * Import all tags from JSON file (replaces current tags)
      */
     function importJSON(event) {
+      const file = event.target.files[0];
+      if (!file) {
+        return;
+      }
+      
       const reader = new FileReader();
       reader.onload = function(e) {
         try {
@@ -722,7 +737,7 @@ input[type="file"]::file-selector-button:active {
           alert('Error parsing JSON file: ' + error.message);
         }
       };
-      reader.readAsText(event.target.files[0]);
+      reader.readAsText(file);
     }
 
     // ============================================================
