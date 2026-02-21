@@ -1,404 +1,748 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AprilTag Field Editor</title>
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-    body {
-      margin: 0;
-      display: flex;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #1e1e1e;
-      color: #ffffff;
-    }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AprilTag Field Editor</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        display: flex;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #1e1e1e;
+        color: #ffffff;
+      }
 
-    #sidebar {
-      width: 300px auto;
-      padding: 1rem;
-      background: #252526;
-      border-right: 1px solid #3c3c3c;
-      overflow-y: auto;
-      height: 100vh;
-    }
+      #sidebar {
+        width: 300px auto;
+        padding: 1rem;
+        background: #252526;
+        border-right: 1px solid #3c3c3c;
+        overflow-y: auto;
+        height: 100vh;
+      }
 
-    #canvas {
-      flex-grow: 1;
-      height: 100vh auto;
-      background: #2d2d2d;
-      display: block;
-    }
+      #canvas {
+        flex-grow: 1;
+        height: 100vh auto;
+        background: #2d2d2d;
+        display: block;
+      }
 
-    h2, h3 {
-      margin-top: 0;
-      color: #61dafb;
-    }
+      h2,
+      h3 {
+        margin-top: 0;
+        color: #61dafb;
+      }
 
-    label {
-      display: block;
-      margin-bottom: 0.75rem;
-    }
+      label {
+        display: block;
+        margin-bottom: 0.75rem;
+      }
 
-    input[type="text"],
-    input[type="number"],
-    button {
-      width: 100%;
-      padding: 0.4rem 0.5rem;
-      margin-top: 0.2rem;
-      margin-bottom: 0.5rem;
-      border-radius: 4px;
-      border: none;
-      outline: none;
-      
-    }
+      input[type="text"],
+      input[type="number"],
+      button {
+        width: 100%;
+        padding: 0.4rem 0.5rem;
+        margin-top: 0.2rem;
+        margin-bottom: 0.5rem;
+        border-radius: 4px;
+        border: none;
+        outline: none;
+      }
 
-    input[type="text"],
-    input[type="number"] {
-      background: #3c3c3c;
-      color: #ffffff;
-    }
+      input[type="text"],
+      input[type="number"] {
+        background: #3c3c3c;
+        color: #ffffff;
+      }
 
-    input[type="text"]:focus,
-    input[type="number"]:focus {
-      background: #505050;
-      border: 1px solid #61dafb;
-    }
+      input[type="text"]:focus,
+      input[type="number"]:focus {
+        background: #505050;
+        border: 1px solid #61dafb;
+      }
 
-    button{
-      background: #007acc;
-      color: white;
-      font-weight: bold;
-      cursor: pointer;
-      border: none;
-      transition: background 0.2s ease-in-out;
-    }
+      button {
+        background: #007acc;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+        border: none;
+        transition: background 0.2s ease-in-out;
+      }
 
-    button:hover {
-      background: #005fa3;
-    }
+      button:hover {
+        background: #005fa3;
+      }
 
-    .tag-form {
-      margin-bottom: 1rem;
-    }
+      .tag-form {
+        margin-bottom: 1rem;
+      }
 
-    .tag-list {
-      margin-top: 1rem;
-    }
+      .tag-list {
+        margin-top: 1rem;
+      }
 
-    .tag-item {
-      padding: 0.5rem;
-      background: #2a2a2a;
-      margin-bottom: 0.5rem;
-      border: 1px solid #444;
-      border-radius: 5px;
-    }
+      .tag-item {
+        padding: 0.5rem;
+        background: #2a2a2a;
+        margin-bottom: 0.5rem;
+        border: 1px solid #444;
+        border-radius: 5px;
+      }
 
-    .tag-item input {
-      width: calc(100% - 10px);
-      margin-top: 0.3rem;
-      background-color: #3c3c3c;
-      color: white;
-    }
+      .tag-item input {
+        width: calc(100% - 10px);
+        margin-top: 0.3rem;
+        background-color: #3c3c3c;
+        color: white;
+      }
 
-    input[type="file"] {
-      background: none;
-      color: #ddd;
-      margin-top: 0.5rem;
-      margin-bottom: 0.75rem;
-    }
-    input[type="file"] {
-  position: relative;
-}
+      input[type="file"] {
+        background: none;
+        color: #ddd;
+        margin-top: 0.5rem;
+        margin-bottom: 0.75rem;
+      }
+      input[type="file"] {
+        position: relative;
+      }
 
-input[type="file"]::file-selector-button {
-  width: 136px;
-  color: transparent;
-}
+      input[type="file"]::file-selector-button {
+        width: 136px;
+        color: transparent;
+      }
 
-/* Faked label styles and icon */
-input[type="file"]::before {
-  position: absolute;
-  pointer-events: none;
-  top: 10px;
-  left: 16px;
-  height: 20px;
-  width: 20px;
-  content: "";
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230964B0'%3E%3Cpath d='M18 15v3H6v-3H4v3c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-3h-2zM7 9l1.41 1.41L11 7.83V16h2V7.83l2.59 2.58L17 9l-5-5-5 5z'/%3E%3C/svg%3E");
-}
+      /* Faked label styles and icon */
+      input[type="file"]::before {
+        position: absolute;
+        pointer-events: none;
+        top: 10px;
+        left: 16px;
+        height: 20px;
+        width: 20px;
+        content: "";
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230964B0'%3E%3Cpath d='M18 15v3H6v-3H4v3c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-3h-2zM7 9l1.41 1.41L11 7.83V16h2V7.83l2.59 2.58L17 9l-5-5-5 5z'/%3E%3C/svg%3E");
+      }
 
-input[type="file"]::after {
-  position: absolute;
-  pointer-events: none;
-  top: 11px;
-  left: 40px;
-  color: #0964b0;
-  content: "Upload File";
-}
+      input[type="file"]::after {
+        position: absolute;
+        pointer-events: none;
+        top: 11px;
+        left: 40px;
+        color: #0964b0;
+        content: "Upload File";
+      }
 
-/* ------- From Step 1 ------- */
+      /* ------- From Step 1 ------- */
 
-/* file upload button */
-input[type="file"]::file-selector-button {
-  border-radius: 4px;
-  padding: 0 16px;
-  height: 40px;
-  cursor: pointer;
-  background-color: white;
-  border: 1px solid rgba(0, 0, 0, 0.16);
-  box-shadow: 0px 1px 0px rgba(0, 0, 0, 0.05);
-  margin-right: 16px;
-  transition: background-color 200ms;
-}
+      /* file upload button */
+      input[type="file"]::file-selector-button {
+        border-radius: 4px;
+        padding: 0 16px;
+        height: 40px;
+        cursor: pointer;
+        background-color: white;
+        border: 1px solid rgba(0, 0, 0, 0.16);
+        box-shadow: 0px 1px 0px rgba(0, 0, 0, 0.05);
+        margin-right: 16px;
+        transition: background-color 200ms;
+      }
 
-/* file upload button hover state */
-input[type="file"]::file-selector-button:hover {
-  background-color: #f3f4f6;
-}
+      /* file upload button hover state */
+      input[type="file"]::file-selector-button:hover {
+        background-color: #f3f4f6;
+      }
 
-/* file upload button active state */
-input[type="file"]::file-selector-button:active {
-  background-color: #e5e7eb;
-}
+      /* file upload button active state */
+      input[type="file"]::file-selector-button:active {
+        background-color: #e5e7eb;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="sidebar">
+      <h2>AprilTag Editor</h2>
+      <label>Import Custom Layout:</label>
+      <input
+        id="fileinput"
+        type="file"
+        accept=".json"
+        onchange="importJSON(event)"
+      />
+      <label>Import FRC Layout:</label>
+      <input
+        id="frcFileInput"
+        type="file"
+        accept=".json"
+        onchange="importFRCLayout(event)"
+      />
+      <label>Name: <input type="text" id="fieldName" /></label>
+      <label>Width (in): <input type="number" id="fieldWidth" /></label>
+      <label>Length (in): <input type="number" id="fieldLength" /></label>
 
+      <h3>Add/Edit Tag</h3>
+      <div class="tag-form">
+        <label>ID: <input type="number" id="tagId" /></label>
+        <label>X (in): <input type="number" id="tagX" /></label>
+        <label>Y (in): <input type="number" id="tagY" /></label>
+        <label>Z (in): <input type="number" id="tagZ" /></label>
+        <label>Roll (deg): <input type="number" id="tagRoll" /></label>
+        <label>Pitch (deg): <input type="number" id="tagPitch" /></label>
+        <label>Yaw (deg): <input type="number" id="tagYaw" /></label>
+        <button onclick="addOrUpdateTag()">Save Tag</button>
+      </div>
 
-  </style>
-</head>
-<body>
-  <div id="sidebar">
-    <h2>AprilTag Editor</h2>
-    <label id="fileinput>">Import JSON:</label>
-    <input id="fileinput" type="file" accept=".json" onchange="importJSON(event)" >
-    <label>Name: <input type="text" id="fieldName"></label>
-    <label>Width (in): <input type="number" id="fieldWidth"></label>
-    <label>Length (in): <input type="number" id="fieldLength"></label>
+      <button onclick="downloadJSON()">Export JSON</button>
 
-    <h3>Add/Edit Tag</h3>
-    <div class="tag-form">
-      <label>ID: <input type="number" id="tagId"></label>
-      <label>X (in): <input type="number" id="tagX"></label>
-      <label>Y (in): <input type="number" id="tagY"></label>
-      <label>Z (in): <input type="number" id="tagZ"></label>
-      <label>Roll (deg): <input type="number" id="tagRoll"></label>
-      <label>Pitch (deg): <input type="number" id="tagPitch"></label>
-      <label>Yaw (deg): <input type="number" id="tagYaw"></label>
-      <button onclick="addOrUpdateTag()">Save Tag</button>
+      <h3>FRC Layout Alignment</h3>
+      <div id="frcAlignmentSection" style="display: none">
+        <label
+          >Reference Tag ID:
+          <select id="referenceTagId">
+            <option value="">Select a common tag...</option>
+          </select>
+        </label>
+        <button onclick="translateToFRCLayout()">Align to FRC Layout</button>
+        <div
+          id="frcTagInfo"
+          style="color: #888; font-size: 0.9em; margin-top: 0.5rem"
+        ></div>
+      </div>
+
+      <div class="tag-list" id="tagList"></div>
+      <div
+        id="frcTagsInfo"
+        style="color: #888; font-size: 0.85em; margin-top: 1rem"
+      ></div>
     </div>
+    <canvas id="canvas"></canvas>
 
-    <button onclick="downloadJSON()">Export JSON</button>
-    
+    <script>
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      canvas.width = window.innerWidth - 300;
+      canvas.height = window.innerHeight;
 
-    <div class="tag-list" id="tagList"></div>
-  </div>
-  <canvas id="canvas"></canvas>
+      let tags = [];
+      let selectedTags = new Set();
+      let fieldWidth = 1,
+        fieldLength = 1;
+      let frcTags = [];
+      let frcFieldWidth = 1,
+        frcFieldLength = 1;
 
-  <script>
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth - 300;
-    canvas.height = window.innerHeight;
+      function degreesToRadians(deg) {
+        return (deg * Math.PI) / 180;
+      }
 
-    let tags = [];
-    let selectedTags = new Set();
-    let fieldWidth = 1, fieldLength = 1;
+      function radiansToDegrees(rad) {
+        return (rad * 180) / Math.PI;
+      }
 
-    function degreesToRadians(deg) {
-      return deg * Math.PI / 180;
-    }
+      function eulerToQuaternion(roll, pitch, yaw) {
+        const cr = Math.cos(roll / 2);
+        const sr = Math.sin(roll / 2);
+        const cp = Math.cos(pitch / 2);
+        const sp = Math.sin(pitch / 2);
+        const cy = Math.cos(yaw / 2);
+        const sy = Math.sin(yaw / 2);
 
-    function radiansToDegrees(rad) {
-      return rad * 180 / Math.PI;
-    }
+        return {
+          X: sr * cp * cy - cr * sp * sy,
+          Y: cr * sp * cy + sr * cp * sy,
+          Z: cr * cp * sy - sr * sp * cy,
+          W: cr * cp * cy + sr * sp * sy,
+        };
+      }
 
-    function eulerToQuaternion(roll, pitch, yaw) {
-      const cr = Math.cos(roll / 2);
-      const sr = Math.sin(roll / 2);
-      const cp = Math.cos(pitch / 2);
-      const sp = Math.sin(pitch / 2);
-      const cy = Math.cos(yaw / 2);
-      const sy = Math.sin(yaw / 2);
+      function quaternionToEuler(q) {
+        const sinr_cosp = 2 * (q.W * q.X + q.Y * q.Z);
+        const cosr_cosp = 1 - 2 * (q.X * q.X + q.Y * q.Y);
+        const roll = Math.atan2(sinr_cosp, cosr_cosp);
 
-      return {
-        X: sr * cp * cy - cr * sp * sy,
-        Y: cr * sp * cy + sr * cp * sy,
-        Z: cr * cp * sy - sr * sp * cy,
-        W: cr * cp * cy + sr * sp * sy
-      };
-    }
+        const sinp = 2 * (q.W * q.Y - q.Z * q.X);
+        const pitch =
+          Math.abs(sinp) >= 1
+            ? (Math.sign(sinp) * Math.PI) / 2
+            : Math.asin(sinp);
 
-    function quaternionToEuler(q) {
-      const sinr_cosp = 2 * (q.W * q.X + q.Y * q.Z);
-      const cosr_cosp = 1 - 2 * (q.X * q.X + q.Y * q.Y);
-      const roll = Math.atan2(sinr_cosp, cosr_cosp);
+        const siny_cosp = 2 * (q.W * q.Z + q.X * q.Y);
+        const cosy_cosp = 1 - 2 * (q.Y * q.Y + q.Z * q.Z);
+        const yaw = Math.atan2(siny_cosp, cosy_cosp);
 
-      const sinp = 2 * (q.W * q.Y - q.Z * q.X);
-      const pitch = Math.abs(sinp) >= 1 ? Math.sign(sinp) * Math.PI / 2 : Math.asin(sinp);
+        return { roll, pitch, yaw };
+      }
 
-      const siny_cosp = 2 * (q.W * q.Z + q.X * q.Y);
-      const cosy_cosp = 1 - 2 * (q.Y * q.Y + q.Z * q.Z);
-      const yaw = Math.atan2(siny_cosp, cosy_cosp);
-
-      return { roll, pitch, yaw };
-    }
-
-    function updateTagList() {
-      const tagList = document.getElementById('tagList');
-      tagList.innerHTML = '';
-      tags.forEach((tag, index) => {
-        const div = document.createElement('div');
-        div.className = 'tag-item';
-        div.innerHTML = `
+      function updateTagList() {
+        const tagList = document.getElementById("tagList");
+        tagList.innerHTML = "";
+        tags.forEach((tag, index) => {
+          const euler = quaternionToEuler(tag.pose.rotation.quaternion);
+          const div = document.createElement("div");
+          div.className = "tag-item";
+          div.innerHTML = `
           ID: <input type="number" value="${tag.ID}" onchange="editTag(${index}, 'ID', this.value)"><br>
           X: <input type="number" value="${(tag.pose.translation.x * 39.3701).toFixed(2)}" onchange="editTag(${index}, 'x', this.value)">
           Y: <input type="number" value="${(tag.pose.translation.y * 39.3701).toFixed(2)}" onchange="editTag(${index}, 'y', this.value)">
-          Z: <input type="number" value="${(tag.pose.translation.z * 39.3701).toFixed(2)}" onchange="editTag(${index}, 'z', this.value)">
+          Z: <input type="number" value="${(tag.pose.translation.z * 39.3701).toFixed(2)}" onchange="editTag(${index}, 'z', this.value)"><br>
+          Roll: <input type="number" value="${radiansToDegrees(euler.roll).toFixed(2)}" onchange="editTag(${index}, 'roll', this.value)">
+          Pitch: <input type="number" value="${radiansToDegrees(euler.pitch).toFixed(2)}" onchange="editTag(${index}, 'pitch', this.value)">
+          Yaw: <input type="number" value="${radiansToDegrees(euler.yaw).toFixed(2)}" onchange="editTag(${index}, 'yaw', this.value)">
         `;
-        tagList.appendChild(div);
-      });
-    }
-
-    function editTag(index, field, value) {
-      if (field === 'ID') tags[index].ID = parseInt(value);
-      else tags[index].pose.translation[field] = parseFloat(value) / 39.3701;
-      drawField();
-    }
-
-    function populateFormFromTag(tag) {
-      document.getElementById('tagId').value = tag.ID;
-      document.getElementById('tagX').value = (tag.pose.translation.x * 39.3701).toFixed(2);
-      document.getElementById('tagY').value = (tag.pose.translation.y * 39.3701).toFixed(2);
-      document.getElementById('tagZ').value = (tag.pose.translation.z * 39.3701).toFixed(2);
-
-      const euler = quaternionToEuler(tag.pose.rotation.quaternion);
-      document.getElementById('tagRoll').value = radiansToDegrees(euler.roll).toFixed(2);
-      document.getElementById('tagPitch').value = radiansToDegrees(euler.pitch).toFixed(2);
-      document.getElementById('tagYaw').value = radiansToDegrees(euler.yaw).toFixed(2);
-    }
-
-    function addOrUpdateTag() {
-      const id = parseInt(document.getElementById('tagId').value);
-
-      let x = parseFloat(document.getElementById('tagX').value);
-      let y = parseFloat(document.getElementById('tagY').value);
-
-
-
-      const tagData = {
-        ID: id,
-        pose: {
-          translation: {
-            x: x / 39.3701,
-            y: y / 39.3701,
-            z: parseFloat(document.getElementById('tagZ').value) / 39.3701,
-          },
-          rotation: {
-            quaternion: eulerToQuaternion(
-              degreesToRadians(parseFloat(document.getElementById('tagRoll').value)),
-              degreesToRadians(parseFloat(document.getElementById('tagPitch').value)),
-              degreesToRadians(parseFloat(document.getElementById('tagYaw').value))
-            )
-          }
-        }
-      };
-
-      const index = tags.findIndex(t => t.ID === id);
-      if (index !== -1) {
-        tags[index] = tagData;
-      } else {
-        tags.push(tagData);
+          tagList.appendChild(div);
+        });
       }
 
-      updateTagList();
-      drawField();
-    }
-
-    function drawField() {
-        fieldWidth = parseFloat(document.getElementById('fieldWidth').value) / 39.3701 || 1;
-        fieldLength = parseFloat(document.getElementById('fieldLength').value) / 39.3701 || 1;
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#333';
-        ctx.fillRect(50, 50, canvas.width - 150, canvas.height - 150);
-
-        const scaleX = (canvas.width - 150) / fieldLength;
-        const scaleY = (canvas.height - 150) / fieldWidth;
-
-        // Apply 180-degree rotation by flipping the y position
-        for (const tag of tags) {
-            // Reverse the y position for 180-degree rotation
-            const x = tag.pose.translation.x * scaleX + 50;
-            const y = (fieldWidth - tag.pose.translation.y) * scaleY + 50; // Flip only the Y-axis
-
-            ctx.fillStyle = selectedTags.has(tag.ID) ? '#ff0000' : '#0077ff';
-            ctx.beginPath();
-            ctx.arc(x, y, 7, 0, 7 * Math.PI);
-            ctx.fill();
-            ctx.fillStyle = '#fff';
-            ctx.fillText(`ID: ${tag.ID}`, x + 8, y);
-
-            const angle = Math.atan2(-tag.pose.rotation.quaternion.Z, tag.pose.rotation.quaternion.W) * 2;
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            ctx.lineTo(x + Math.cos(angle) * 20, y + Math.sin(angle) * 20);
-            ctx.stroke();
+      function editTag(index, field, value) {
+        if (field === "ID") {
+          tags[index].ID = parseInt(value);
+        } else if (["roll", "pitch", "yaw"].includes(field)) {
+          const euler = quaternionToEuler(tags[index].pose.rotation.quaternion);
+          euler[field] = degreesToRadians(parseFloat(value));
+          tags[index].pose.rotation.quaternion = eulerToQuaternion(
+            euler.roll,
+            euler.pitch,
+            euler.yaw,
+          );
+        } else {
+          tags[index].pose.translation[field] = parseFloat(value) / 39.3701;
         }
+        drawField();
+      }
+
+      function populateFormFromTag(tag) {
+        document.getElementById("tagId").value = tag.ID;
+        document.getElementById("tagX").value = (
+          tag.pose.translation.x * 39.3701
+        ).toFixed(2);
+        document.getElementById("tagY").value = (
+          tag.pose.translation.y * 39.3701
+        ).toFixed(2);
+        document.getElementById("tagZ").value = (
+          tag.pose.translation.z * 39.3701
+        ).toFixed(2);
+
+        const euler = quaternionToEuler(tag.pose.rotation.quaternion);
+        document.getElementById("tagRoll").value = radiansToDegrees(
+          euler.roll,
+        ).toFixed(2);
+        document.getElementById("tagPitch").value = radiansToDegrees(
+          euler.pitch,
+        ).toFixed(2);
+        document.getElementById("tagYaw").value = radiansToDegrees(
+          euler.yaw,
+        ).toFixed(2);
+      }
+
+      function addOrUpdateTag() {
+        const id = parseInt(document.getElementById("tagId").value);
+
+        let x = parseFloat(document.getElementById("tagX").value);
+        let y = parseFloat(document.getElementById("tagY").value);
+
+        const tagData = {
+          ID: id,
+          pose: {
+            translation: {
+              x: x / 39.3701,
+              y: y / 39.3701,
+              z: parseFloat(document.getElementById("tagZ").value) / 39.3701,
+            },
+            rotation: {
+              quaternion: eulerToQuaternion(
+                degreesToRadians(
+                  parseFloat(document.getElementById("tagRoll").value),
+                ),
+                degreesToRadians(
+                  parseFloat(document.getElementById("tagPitch").value),
+                ),
+                degreesToRadians(
+                  parseFloat(document.getElementById("tagYaw").value),
+                ),
+              ),
+            },
+          },
+        };
+
+        const index = tags.findIndex((t) => t.ID === id);
+        if (index !== -1) {
+          tags[index] = tagData;
+        } else {
+          tags.push(tagData);
         }
 
-    function downloadJSON() {
-      const data = {
-        field: {
-          width: fieldWidth,
-          length: fieldLength
-        },
-        tags
-      };
-      const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${document.getElementById('fieldName').value || 'field'}.json`;
-      a.click();
-    }
-
-    function importJSON(event) {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const json = JSON.parse(e.target.result);
-        tags = json.tags || [];
-        document.getElementById('fieldWidth').value = json.field.width * 39.3701;
-        document.getElementById('fieldLength').value = json.field.length * 39.3701;+
         updateTagList();
         drawField();
-      };
-      reader.readAsText(event.target.files[0]);
-    }
+      }
 
-    canvas.addEventListener('click', function (e) {
-      const scaleX = (canvas.width - 100) / fieldLength;
-      const scaleY = (canvas.height - 100) / fieldWidth;
-      const clickX = e.offsetX;
-      const clickY = e.offsetY;
+      function drawField() {
+        fieldWidth =
+          parseFloat(document.getElementById("fieldWidth").value) / 39.3701 ||
+          1;
+        fieldLength =
+          parseFloat(document.getElementById("fieldLength").value) / 39.3701 ||
+          1;
 
-      for (const tag of tags) {
-        const x = tag.pose.translation.x * scaleX ;
-        const y = tag.pose.translation.y * scaleY ;
-        const dx = clickX - x;
-        const dy = clickY - y;
-        if (Math.sqrt(dx * dx + dy * dy) < 10) {
-          if (selectedTags.has(tag.ID)) {
-            selectedTags.delete(tag.ID);
-          } else {
-            selectedTags.add(tag.ID);
-            populateFormFromTag(tag);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw the field background
+        const fieldToUse = frcTags.length > 0 ? frcFieldWidth : fieldWidth;
+        const lengthToUse = frcTags.length > 0 ? frcFieldLength : fieldLength;
+
+        ctx.fillStyle = "#333";
+        ctx.fillRect(50, 50, canvas.width - 150, canvas.height - 150);
+
+        // Draw field border
+        ctx.strokeStyle = "#666";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(50, 50, canvas.width - 150, canvas.height - 150);
+
+        const scaleX = (canvas.width - 150) / lengthToUse;
+        const scaleY = (canvas.height - 150) / fieldToUse;
+
+        // Draw FRC tags first (background)
+        if (frcTags.length > 0) {
+          for (const tag of frcTags) {
+            const x = tag.pose.translation.x * scaleX + 50;
+            const y = (fieldToUse - tag.pose.translation.y) * scaleY + 50;
+
+            ctx.fillStyle = "#004466";
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.fillStyle = "#00aacc";
+            ctx.font = "10px sans-serif";
+            ctx.fillText(`F${tag.ID}`, x + 8, y - 2);
           }
-          drawField();
-          break;
+        }
+
+        // Draw custom tags (foreground)
+        for (const tag of tags) {
+          const x = tag.pose.translation.x * scaleX + 50;
+          const y = (fieldToUse - tag.pose.translation.y) * scaleY + 50;
+
+          ctx.fillStyle = selectedTags.has(tag.ID) ? "#ff0000" : "#0077ff";
+          ctx.beginPath();
+          ctx.arc(x, y, 7, 0, 2 * Math.PI);
+          ctx.fill();
+
+          // Draw rotation indicator (arrow pointing in direction of tag)
+          const euler = quaternionToEuler(tag.pose.rotation.quaternion);
+          const yaw = euler.yaw;
+          const arrowLength = 15;
+          const arrowEndX = x + Math.cos(yaw) * arrowLength;
+          const arrowEndY = y + Math.sin(yaw) * arrowLength;
+
+          ctx.strokeStyle = selectedTags.has(tag.ID) ? "#ff8888" : "#88ff88";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(arrowEndX, arrowEndY);
+          ctx.stroke();
+
+          // Draw arrowhead
+          const headlen = 5;
+          const angle1 = yaw + (Math.PI * 5) / 6;
+          const angle2 = yaw - (Math.PI * 5) / 6;
+          ctx.beginPath();
+          ctx.moveTo(arrowEndX, arrowEndY);
+          ctx.lineTo(
+            arrowEndX - headlen * Math.cos(angle1),
+            arrowEndY - headlen * Math.sin(angle1),
+          );
+          ctx.moveTo(arrowEndX, arrowEndY);
+          ctx.lineTo(
+            arrowEndX - headlen * Math.cos(angle2),
+            arrowEndY - headlen * Math.sin(angle2),
+          );
+          ctx.stroke();
+
+          ctx.fillStyle = "#fff";
+          ctx.font = "12px sans-serif";
+          ctx.fillText(`ID: ${tag.ID}`, x + 8, y - 10);
+          ctx.font = "10px sans-serif";
+          ctx.fillStyle = "#aaa";
+          ctx.fillText(`Y: ${radiansToDegrees(yaw).toFixed(0)}°`, x + 8, y + 8);
         }
       }
-    });
-  </script>
-</body>
+
+      function downloadJSON() {
+        const data = {
+          field: {
+            width: fieldWidth,
+            length: fieldLength,
+          },
+          tags,
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${document.getElementById("fieldName").value || "field"}.json`;
+        a.click();
+      }
+
+      function importJSON(event) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const json = JSON.parse(e.target.result);
+          tags = json.tags || [];
+          document.getElementById("fieldWidth").value =
+            json.field.width * 39.3701;
+          document.getElementById("fieldLength").value =
+            json.field.length * 39.3701;
+          +updateTagList();
+          drawField();
+          if (frcTags.length > 0) updateReferenceTagDropdown();
+        };
+        reader.readAsText(event.target.files[0]);
+      }
+
+      function importFRCLayout(event) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const json = JSON.parse(e.target.result);
+          frcTags = json.tags || [];
+          frcFieldWidth = json.field.width || 1;
+          frcFieldLength = json.field.length || 1;
+
+          // Populate reference tag dropdown with common tags
+          updateReferenceTagDropdown();
+
+          // Show alignment section
+          document.getElementById("frcAlignmentSection").style.display =
+            "block";
+
+          // Display FRC tags info
+          const frcInfo = document.getElementById("frcTagsInfo");
+          frcInfo.innerHTML = `<strong>FRC Layout Loaded:</strong> ${frcTags.length} tags found`;
+
+          drawField();
+        };
+        reader.readAsText(event.target.files[0]);
+      }
+
+      function updateReferenceTagDropdown() {
+        const select = document.getElementById("referenceTagId");
+        select.innerHTML = '<option value="">Select a common tag...</option>';
+
+        // Find tags that exist in both layouts
+        const commonIds = tags
+          .map((t) => t.ID)
+          .filter((id) => frcTags.some((ft) => ft.ID === id));
+
+        commonIds.forEach((id) => {
+          const option = document.createElement("option");
+          option.value = id;
+          option.textContent = `Tag ${id}`;
+          select.appendChild(option);
+        });
+      }
+
+      function rotateVectorByQuaternion(vector, quat) {
+        // Create quaternion from vector (0, x, y, z)
+        const vecQuat = { X: vector.x, Y: vector.y, Z: vector.z, W: 0 };
+
+        // Conjugate of quaternion
+        const quatConj = { X: -quat.X, Y: -quat.Y, Z: -quat.Z, W: quat.W };
+
+        // Rotate: q * v * q^-1
+        const rotatedQuat1 = {
+          X:
+            quat.W * vecQuat.X +
+            quat.X * vecQuat.W +
+            quat.Y * vecQuat.Z -
+            quat.Z * vecQuat.Y,
+          Y:
+            quat.W * vecQuat.Y -
+            quat.X * vecQuat.Z +
+            quat.Y * vecQuat.W +
+            quat.Z * vecQuat.X,
+          Z:
+            quat.W * vecQuat.Z +
+            quat.X * vecQuat.Y -
+            quat.Y * vecQuat.X +
+            quat.Z * vecQuat.W,
+          W:
+            quat.W * vecQuat.W -
+            quat.X * vecQuat.X -
+            quat.Y * vecQuat.Y -
+            quat.Z * vecQuat.Z,
+        };
+
+        return {
+          x:
+            rotatedQuat1.W * quatConj.X +
+            rotatedQuat1.X * quatConj.W +
+            rotatedQuat1.Y * quatConj.Z -
+            rotatedQuat1.Z * quatConj.Y,
+          y:
+            rotatedQuat1.W * quatConj.Y -
+            rotatedQuat1.X * quatConj.Z +
+            rotatedQuat1.Y * quatConj.W +
+            rotatedQuat1.Z * quatConj.X,
+          z:
+            rotatedQuat1.W * quatConj.Z +
+            rotatedQuat1.X * quatConj.Y -
+            rotatedQuat1.Y * quatConj.X +
+            rotatedQuat1.Z * quatConj.W,
+        };
+      }
+
+      function translateToFRCLayout() {
+        const refId = parseInt(document.getElementById("referenceTagId").value);
+
+        if (!refId && refId !== 0) {
+          alert("Please select a reference tag");
+          return;
+        }
+
+        const customRefTag = tags.find((t) => t.ID === refId);
+        const frcRefTag = frcTags.find((t) => t.ID === refId);
+
+        if (!customRefTag || !frcRefTag) {
+          alert("Reference tag not found in one of the layouts");
+          return;
+        }
+
+        // Calculate position offset between the two layouts
+        const offsetX =
+          frcRefTag.pose.translation.x - customRefTag.pose.translation.x;
+        const offsetY =
+          frcRefTag.pose.translation.y - customRefTag.pose.translation.y;
+        const offsetZ =
+          frcRefTag.pose.translation.z - customRefTag.pose.translation.z;
+
+        // Calculate rotation offset (quaternion difference)
+        // quaternion difference = frcRefTag * conjugate(customRefTag)
+        const customQuat = customRefTag.pose.rotation.quaternion;
+        const frcQuat = frcRefTag.pose.rotation.quaternion;
+
+        // Conjugate of custom quaternion
+        const customQuatConj = {
+          X: -customQuat.X,
+          Y: -customQuat.Y,
+          Z: -customQuat.Z,
+          W: customQuat.W,
+        };
+
+        // Multiply frcQuat * customQuatConj to get rotation offset
+        const rotOffset = {
+          X:
+            frcQuat.W * customQuatConj.X +
+            frcQuat.X * customQuatConj.W +
+            frcQuat.Y * customQuatConj.Z -
+            frcQuat.Z * customQuatConj.Y,
+          Y:
+            frcQuat.W * customQuatConj.Y -
+            frcQuat.X * customQuatConj.Z +
+            frcQuat.Y * customQuatConj.W +
+            frcQuat.Z * customQuatConj.X,
+          Z:
+            frcQuat.W * customQuatConj.Z +
+            frcQuat.X * customQuatConj.Y -
+            frcQuat.Y * customQuatConj.X +
+            frcQuat.Z * customQuatConj.W,
+          W:
+            frcQuat.W * customQuatConj.W -
+            frcQuat.X * customQuatConj.X -
+            frcQuat.Y * customQuatConj.Y -
+            frcQuat.Z * customQuatConj.Z,
+        };
+
+        // Apply offset to all custom tags
+        tags.forEach((tag) => {
+          // Translate tag relative to reference tag
+          let relX = tag.pose.translation.x - customRefTag.pose.translation.x;
+          let relY = tag.pose.translation.y - customRefTag.pose.translation.y;
+          let relZ = tag.pose.translation.z - customRefTag.pose.translation.z;
+
+          // Rotate the position vector using the rotation offset
+          // Apply quaternion rotation to the position vector
+          const rotatedPos = rotateVectorByQuaternion(
+            { x: relX, y: relY, z: relZ },
+            rotOffset,
+          );
+
+          // Apply offset to new position
+          tag.pose.translation.x = rotatedPos.x + frcRefTag.pose.translation.x;
+          tag.pose.translation.y = rotatedPos.y + frcRefTag.pose.translation.y;
+          tag.pose.translation.z = rotatedPos.z + frcRefTag.pose.translation.z;
+
+          // Apply rotation offset to tag orientation
+          const tagQuat = tag.pose.rotation.quaternion;
+          tag.pose.rotation.quaternion = {
+            X:
+              rotOffset.W * tagQuat.X +
+              rotOffset.X * tagQuat.W +
+              rotOffset.Y * tagQuat.Z -
+              rotOffset.Z * tagQuat.Y,
+            Y:
+              rotOffset.W * tagQuat.Y -
+              rotOffset.X * tagQuat.Z +
+              rotOffset.Y * tagQuat.W +
+              rotOffset.Z * tagQuat.X,
+            Z:
+              rotOffset.W * tagQuat.Z +
+              rotOffset.X * tagQuat.Y -
+              rotOffset.Y * tagQuat.X +
+              rotOffset.Z * tagQuat.W,
+            W:
+              rotOffset.W * tagQuat.W -
+              rotOffset.X * tagQuat.X -
+              rotOffset.Y * tagQuat.Y -
+              rotOffset.Z * tagQuat.Z,
+          };
+        });
+
+        // Update field dimensions to match FRC layout
+        fieldWidth = frcFieldWidth;
+        fieldLength = frcFieldLength;
+        document.getElementById("fieldWidth").value = (
+          fieldWidth * 39.3701
+        ).toFixed(2);
+        document.getElementById("fieldLength").value = (
+          fieldLength * 39.3701
+        ).toFixed(2);
+
+        updateTagList();
+        drawField();
+
+        const info = document.getElementById("frcTagInfo");
+        info.innerHTML = `<strong>Aligned!</strong> Position offset: (${offsetX.toFixed(3)}, ${offsetY.toFixed(3)}, ${offsetZ.toFixed(3)}) m`;
+      }
+
+      canvas.addEventListener("click", function (e) {
+        const scaleX = (canvas.width - 100) / fieldLength;
+        const scaleY = (canvas.height - 100) / fieldWidth;
+        const clickX = e.offsetX;
+        const clickY = e.offsetY;
+
+        for (const tag of tags) {
+          const x = tag.pose.translation.x * scaleX;
+          const y = tag.pose.translation.y * scaleY;
+          const dx = clickX - x;
+          const dy = clickY - y;
+          if (Math.sqrt(dx * dx + dy * dy) < 10) {
+            if (selectedTags.has(tag.ID)) {
+              selectedTags.delete(tag.ID);
+            } else {
+              selectedTags.add(tag.ID);
+              populateFormFromTag(tag);
+            }
+            drawField();
+            break;
+          }
+        }
+      });
+    </script>
+  </body>
 </html>
